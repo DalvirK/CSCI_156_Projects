@@ -1,6 +1,5 @@
 import socket
 import threading
-import time
 
 # Get port and server info
 PORT = 8000
@@ -53,9 +52,6 @@ def closeRoom(room_name):
     """
     if room_name not in rooms:
         return "Room does not exist"
-
-    broadcast("This room will be closed in 5 seconds...", room_name)
-    time.sleep(5)
 
     for client_socket, addr in rooms[room_name][:]:
         client_socket.send(joinRoom(client_socket, addr, 'main').encode('utf-8'))
@@ -131,7 +127,7 @@ def handle_command(client_socket, addr, split_message):
         for room in list(rooms.keys()):
             client_socket.send(closeRoom(room).encode('utf-8'))
     elif split_message[0] == 'broadcast' and len(split_message) > 1 and client_sockets[addr]['type']:
-        for room in rooms:
+        for room in rooms
             broadcast(split_message[1:], room, client_socket)
             client_socket.send("Message broadcasted to all rooms".encode('utf-8'))
     else:
