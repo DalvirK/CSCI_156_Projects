@@ -1,7 +1,7 @@
 import socket
 import time
 import threading
-import sys
+import os
 
 host = "localhost"
 port = 5050
@@ -26,12 +26,10 @@ def start_connection():
         running = True
         connected = True
         
-    except (ConnectionRefusedError, BrokenPipeError):
-        print("Could not connect to the server.")
-        sys.exit(0)
+    except:
+        print("Server connection failed, closing connection...")
+        time.sleep(2)
         client.close()
-    except Exception as e:
-        print(f"An error occurred: {e}")
     
    
     
@@ -55,6 +53,11 @@ def receive():
                 client.send(price.encode('utf-8'))
             elif msg == "STOP":
                 print("Time's up, calculating winner...")
+            elif msg == "Q":
+                print("Server quit unexpectedly, closing connection...")
+                time.sleep(3)
+                os._exit(0)
+                break
             else:
                 print(msg)
             
@@ -62,6 +65,11 @@ def receive():
             print(f"Connection error: {e}")
             print("Closing connection")
             client.close()
+            os._exit(0)
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            client.close()
+            os._exit(0)
 
 
 start_connection()

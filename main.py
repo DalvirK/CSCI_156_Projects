@@ -1,16 +1,14 @@
 
 # TO DO:
-# Then the clients can add 1 bid (for now)
-# Then start the second item bidding
 # deal with clients with the same bid amount
-# deal with one client not bidding at all
-# deal with no one bidding at all
-# both bids are lower
-
+# handle a client not entering any data at all (at all for the bidding(?))
+    # Or if the client doesn't want to bid on an item they can write 0(we will skip them(?))
 
 import socket
 import time
 import threading
+import os
+import tkinter as tk
 
 HOST = "localhost"
 PORT = 5050
@@ -46,7 +44,10 @@ def countdown(mtime):
     #broadcast("\nTIME'S UP!")
     time_up = "TIME"
     Winner()
-    
+
+thread_timer = threading.Thread(target=countdown,args=(20,))
+stop_thread = threading.Event()
+  
 
 # Will send message to all clients
 def broadcast(message):
@@ -74,6 +75,14 @@ def remove_connection(connection):
         connection.close()
         broadcast(f"{name} has left the server.")
         print(f"{name} has left the server")
+        
+    # Check if all clients have left
+    if not Bidder_Connections:
+        print("All clients have disconnected. Closing the server.")
+        connection.close()
+        stop_thread.set()  # Signal the timer thread to stop
+        thread_timer.join() 
+        os._exit(0)
         
 
 # This function will take client input for bids
@@ -106,16 +115,27 @@ def handle_client(connection):
 
 def  Winner():
     broadcast("STOP") # to stop taking input for bidding
-    global item # using global item variable
+    global item 
     price = Items[item]["Price"] # getting current price
     count = continue_if()
+    
+    if all(record["price"] < price for record in Records): # If both bids are lower than the initial price:
+            broadcast("All prices are less than the specified price.")
+            # GO ON TO NEXT ITEM(?)
+            # RESTART THE SAME ITEM BIDDING?
+    
+    for i in range(len(Records) - 1): 
+        if Records[i]["price"] == Records[i+1]["price"]:
+            broadcast("It was a tie!")
+            # GO ON TO NEXT ITEM(?)
+            # RESTART THE SAME ITEM BIDDING?
     
     # find highest bidder:
     for r in range(len(Records)):
         if Records[r]["price"] > price:
             current_winner = Records[r]["name"]
             price = Records[r]["price"]
-            
+  
     time.sleep(3) # Suspense
     broadcast(f"Winner of {Records[r]["item"]} is {current_winner} for a bid of {price}")
     time.sleep(3) # Time to read
@@ -158,13 +178,17 @@ def Bidding():
         broadcast(f"We are starting the bid on one unit of the item: {Items[item]["Name"]}, Current Price: {Items[item]["Price"]}, You have 1 min to place a bid:")
         time.sleep(0.1)
         
-        thread_timer = threading.Thread(target=countdown,args=(20,))
+        thread_timer = threading.Thread(target=countdown, args=(20,))
         thread_timer.start()
         
         broadcast("START")
 
     
-
+# This function is used to track the 
+# number of items available across 
+# all products. The function helps 
+# to keep track of whether there are 
+# still units available for bidding
 def continue_if():
     count = 0
     for item in Items:
@@ -177,29 +201,37 @@ def continue_if():
 # Will create the connection between client and server
 def receive():
     while True:
+        try:
+            connection, address = server.accept()
         
-        connection, address = server.accept()
-    
-        # Send we are connected:
-        name = connection.recv(1024).decode('utf-8')
-        print(f"{name} Connected: {address}")
-        
-        Bidder_Connections.append(connection)  # Store the connection as same index as below
-        Bidder_Names.append(name) # Store the name at same index as above
-        msg = f"{name} has connected."
-        
-        broadcastMinusOne(msg, name)
-        connection.send(f"Connected to server".encode("utf-8"))
-        
-        recv_thread = threading.Thread(target=handle_client, args=(connection,))  
-        recv_thread.start()
-        
-        # Make sure there are at least four clients before beginning
-        if (len(Bidder_Connections) < 2):
-            broadcast(f"...Waiting for at least 4 bidders, current bidder count: {len(Bidder_Connections)}...")
-            time.sleep(0.1)   
-        else:
-            Bidding()
+            # Send we are connected:
+            name = connection.recv(1024).decode('utf-8')
+            print(f"{name} Connected: {address}")
+            
+            Bidder_Connections.append(connection)  # Store the connection as same index as below
+            Bidder_Names.append(name) # Store the name at same index as above
+            msg = f"{name} has connected."
+            
+            broadcastMinusOne(msg, name)
+            connection.send(f"Connected to server".encode("utf-8"))
+            
+            recv_thread = threading.Thread(target=handle_client, args=(connection,))  
+            recv_thread.start()
+            
+            # Make sure there are at least four clients before beginning
+            if (len(Bidder_Connections) < 2):
+                broadcast(f"...Waiting for at least 4 bidders, current bidder count: {len(Bidder_Connections)}...")
+                time.sleep(0.1)   
+            else:
+                Bidding()
+        except:
+            print("Error occurred")
+            broadcast("Q")
+            #connection.close()
+            #stop_thread.set()  # Signal the timer thread to stop
+            #thread_timer.join() 
+            os._exit(0)
+            break
         
         
     
