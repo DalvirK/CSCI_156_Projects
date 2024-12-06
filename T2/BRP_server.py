@@ -1,5 +1,6 @@
 import socket
 import threading
+import time
 
 # Get port and server info
 PORT = 8000
@@ -43,25 +44,39 @@ def createRoom(room_name):
    
     return "Room created" 
 
-def closeRoom(room_name):
-    """Remove an existing room
+def closeRoom(client_socket, addr, room_name):
+    """Thread function for removing an existing room 
     Args:
+        client_socket (socket): client socket that sent the message
+        addr (string): address of client socket
         room_name (string): name of the room
-    Return:
-        message (string): confirmation string to send to client
     """
     if room_name not in rooms:
-        return "Room does not exist"
+        client_socket.send(f"{room_name} does not exist".encode('utf-8'))
+    else:
+        for i in reversed(range(5)):
+            broadcast(f"This room will be closed in {i} seconds...", room_name)
+            time.sleep(1)
 
-    for client_socket, addr in rooms[room_name][:]:
-        client_socket.send(joinRoom(client_socket, addr, 'main').encode('utf-8'))
+        for client, addr in rooms[room_name][:]:
+            client.send(moveClient(client, addr, 'main').encode('utf-8'))
+        
+        del rooms[room_name]
+        client_socket.send(f"{room_name} closed".encode('utf-8'))
     
-    del rooms[room_name]
-    
-    return f"{room_name} deleted"
+def closeRoomThreaded(client_socket, addr, room_names):
+    """Close a list of rooms using threads
+    Args:
+        client_socket (socket): client socket that sent the message
+        addr (string): address of client socket
+        room_names (list[str]): list of rooms to be closed
+    """
+    if len(rooms) > 0:
+        for room in room_names:
+            close_thread = threading.Thread(target=closeRoom, args=(client_socket, addr, room))
+            close_thread.start();
 
-
-def joinRoom(client_socket, addr, room_name):
+def moveClient(client_socket, addr, room_name):
     """Move client from one room to another
     Args:
         client_socket (socket): the client socket to be moved
@@ -118,16 +133,16 @@ def handle_command(client_socket, addr, split_message):
     elif split_message[0] == 'list':
         client_socket.send(listRooms().encode('utf-8'))
     elif split_message[0] == 'join' and len(split_message) > 1:
-        client_socket.send(joinRoom(client_socket, addr, split_message[1]).encode('utf-8'))
+        client_socket.send(moveClient(client_socket, addr, split_message[1]).encode('utf-8'))
     elif split_message[0] == 'create' and len(split_message) > 1 and client_sockets[addr]['type']:
         client_socket.send(createRoom(split_message[1]).encode('utf-8'))
     elif split_message[0] == 'close' and len(split_message) > 1 and client_sockets[addr]['type']:
-        client_socket.send(closeRoom(split_message[1]).encode('utf-8'))
+        closeRoomThreaded(client_socket, addr, split_message[1:])
     elif split_message [0] == 'closeall' and len(split_message) == 1 and client_sockets[addr]['type']:
-        for room in list(rooms.keys()):
-            client_socket.send(closeRoom(room).encode('utf-8'))
+        allrooms = list(rooms.keys())[1:]
+        closeRoomThreaded(client_socket, addr, allrooms)
     elif split_message[0] == 'broadcast' and len(split_message) > 1 and client_sockets[addr]['type']:
-        for room in rooms
+        for room in rooms:
             broadcast(split_message[1:], room, client_socket)
             client_socket.send("Message broadcasted to all rooms".encode('utf-8'))
     else:
@@ -150,8 +165,9 @@ def handle_message(client_socket, addr, message):
 
     output = f"{client_type} {client_sockets[addr]['name']}: {message}"
 
+    print(f"[{client_sockets[addr]['room']}] {output}")
+
     if message[0] != command_prefix:
-        print(f"[{client_sockets[addr]['room']}] {output}")
         broadcast(output, client_sockets[addr]['room'], client_socket);
     else:
         handle_command(client_socket, addr, message[1:].split())
