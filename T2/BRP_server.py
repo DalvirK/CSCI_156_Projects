@@ -143,8 +143,8 @@ def handle_command(client_socket, addr, split_message):
         closeRoomThreaded(client_socket, addr, allrooms)
     elif split_message[0] == 'broadcast' and len(split_message) > 1 and client_sockets[addr]['type']:
         for room in rooms:
-            broadcast(split_message[1:], room, client_socket)
-            client_socket.send("Message broadcasted to all rooms".encode('utf-8'))
+            broadcast(f"[BROADCAST] {client_sockets[addr]['name']}: " + ' '.join(split_message[1:]), room, client_socket)
+        client_socket.send("Message broadcasted to all rooms".encode('utf-8'))
     else:
         client_socket.send("Unknown Command".encode('utf-8'))
 
