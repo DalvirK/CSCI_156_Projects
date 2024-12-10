@@ -3,7 +3,7 @@ import threading
 import sys
 
 PORT = 8000
-SERVER = socket.gethostbyname(socket.gethostname())
+HOST = socket.gethostbyname("Devin-ROG")
 
 client_name = input("Enter a name:\n> ").strip()
 
@@ -45,7 +45,7 @@ def write(client_socket):
 def start_client():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        client_socket.connect((SERVER, PORT))
+        client_socket.connect((HOST, PORT))
     except:
         print("Server not open")
         sys.exit(1)
