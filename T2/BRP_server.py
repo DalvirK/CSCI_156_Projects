@@ -104,21 +104,18 @@ def moveClient(client_socket, addr, room_name):
     # Send message to client that they have successfully joined the new room
     return f"You have joined room {room_name}"
 
-def broadcast(message, room_name, clients_except=None):
+def broadcast(message, room_name, client_except=None):
     """Sends a message to all clients in a room
 
     Args:
         message (string): Message to be broadcasted to
         room (string): name of the room to be broadcasted in 
-        clients_except (list[socket]): Client socket which will not get the message (optional)
+        client_except (socket): Client socket which will not get the message (optional)
     """
-
-    if clients_except is None:
-        clients_except = []
 
     # Using room_name as key iterate through each client in the room
     for client, _ in rooms[room_name]:
-        if client not in clients_except:
+        if client != client_except:
             client.send(message.encode('utf-8'))
 
 def whisper(client_socket, addr, split_message):
@@ -170,7 +167,7 @@ def handle_command(client_socket, addr, split_message):
         closeRoomThreaded(client_socket, addr, allrooms)
     elif split_message[0] == 'broadcast' and len(split_message) > 1 and client_sockets[(client_socket, addr)]['type']:
         for room in rooms:
-            broadcast(f"[BROADCAST] {client_sockets[(client_socket, addr)]['name']}: " + ' '.join(split_message[1:]), room, [client_socket])
+            broadcast(f"[BROADCAST] {client_sockets[(client_socket, addr)]['name']}: " + ' '.join(split_message[1:]), room, client_socket)
         client_socket.send("Message broadcasted to all rooms".encode('utf-8'))
     elif split_message[0] == 'whisper' and len(split_message) > 2:
         whisper(client_socket, addr, split_message)
@@ -197,7 +194,7 @@ def handle_message(client_socket, addr, message):
     print(f"[{client_sockets[(client_socket, addr)]['room']}] {output}")
 
     if message[0] != command_prefix:
-        broadcast(output, client_sockets[(client_socket, addr)]['room'], [client_socket]);
+        broadcast(output, client_sockets[(client_socket, addr)]['room'], client_socket);
     else:
         handle_command(client_socket, addr, message[1:].split())
     
